@@ -1,0 +1,7 @@
+chkpts/
+data/cache/
+__pycache__/
+*.pyc
+*.pt
+*.pth
+wandb/
