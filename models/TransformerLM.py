@@ -67,7 +67,7 @@ class CausalSelfAttention(nn.Module):
     def forward(self, x):
         B, T, C = x.shape
         
-        # 1. Fused projection and split
+        # fused projection and split
         z = self.qkv(x)  # B x T x head_dim*(H + 2G)
         q, k, v = torch.split(
             z, 
@@ -82,12 +82,12 @@ class CausalSelfAttention(nn.Module):
         k = k.view(B, T, self.n_groups, self.head_dim).transpose(1, 2)  # B x G x T x d
         v = v.view(B, T, self.n_groups, self.head_dim).transpose(1, 2)  # B x G x T x d
         
-        # 2. RoPE then QK norm
+        #Rotary PE then QK norm
         q, k = self.rope(q, k)
         q = self.qnorm(q)
         k = self.knorm(k)
         
-        # 3. Flash attention with GQA
+        # flash attention with GQA
         a = F.scaled_dot_product_attention(q, k, v, is_causal=True, enable_gqa=True)
         # a: B x H x T x head_dim
         
@@ -108,7 +108,7 @@ class FeedForwardBlock(nn.Module):
         self.out  = nn.Linear(dim * bottleneck_factor, dim, bias=False)
 
     def forward(self, x):
-        z1, z2 = torch.chunk(self.w12(x), 2, dim=-1)  # each B x T x (dim*factor)
+        z1, z2 = torch.chunk(self.w12(x), 2, dim=-1)  #each B x T x (dim*factor)
         return self.out(z1 * F.silu(z2))
 
 
@@ -167,10 +167,10 @@ class TransformerLM(nn.Module):
             ###########
             # Q4
             ###########
-            # Sort probabilities descending
+            # first sort the probabilities descending
             sorted_probs, sorted_idx = torch.sort(probs, dim=-1, descending=True)
 
-            # Cumulative sum; find cutoff where cumsum first >= top_p
+            # cumulative sum; find cutoff where cumsum first >= top_p
             cumsum = torch.cumsum(sorted_probs, dim=-1)
             # Shift right so the token that pushes us over the threshold is kept
             cutoff_mask = (cumsum - sorted_probs) >= top_p  # True = remove
@@ -178,11 +178,11 @@ class TransformerLM(nn.Module):
             # Zero out tokens outside the nucleus
             sorted_probs[cutoff_mask] = 0.0
 
-            # Scatter back to original vocabulary ordering
+            # scatter back to original vocabulary ordering
             probs_filtered = torch.zeros_like(probs).scatter_(1, sorted_idx, sorted_probs)
 
-            # Renormalize and sample
-            next_token = torch.multinomial(probs_filtered, num_samples=1)  # B x 1
+            #renormalize and sample
+            next_token = torch.multinomial(probs_filtered, num_samples=1)  #Bx 1
 
             idx = torch.cat([idx, next_token], dim=1)
         return idx
