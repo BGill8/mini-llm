@@ -1,11 +1,32 @@
-# run_pretrain.sh
 #!/bin/bash
 #SBATCH -A eecs
 #SBATCH -p eecs
 #SBATCH --gres=gpu:1
-#SBATCH -c 8
+#SBATCH --exclude=cn-gpu3
+#SBATCH -c 4
+#SBATCH --time=36:00:00
 
-export HF_HOME=~/hpc-share/AI539_S2026/A3/data/cache
-cd ~/hpc-share/AI539_S2026/A3
-source ../env/bin/activate
+# Navigate to your specific mini-llm directory
+cd ~/hpc-share/LMM-hw/mini-llm
+
+# Activate your environment
+source /nfs/stak/users/gillb3/hpc-share/Cell-Segmentation-Deep-Learning/.venv/bin/activate
+
+# Set up HuggingFace cache locally to avoid home directory quota issues
+mkdir -p data/cache
+export HF_HOME=$PWD/data/cache
+export HF_DATASETS_CACHE=$PWD/data/cache
+
+pip install tiktoken
+
+# Environment and GPU Sanity Checks
+echo "=========================================================="
+hostname
+echo "CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES"
+echo "SLURM_JOB_GPUS=$SLURM_JOB_GPUS"
+nvidia-smi
+python -c "import torch; print(f'PyTorch Version: {torch.__version__}'); print(f'CUDA Version: {torch.version.cuda}'); print(f'GPUs Available: {torch.cuda.device_count()}')"
+echo "=========================================================="
+
+# Run the pretraining script
 python train_pre.py
